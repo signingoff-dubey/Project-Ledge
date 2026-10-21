@@ -15,6 +15,12 @@ class SetupStore(context: Context) {
         prefs.edit().putBoolean(FINISHED, true).apply()
     }
 
+    fun markOutsideAccessExplained() {
+        prefs.edit().putBoolean(OUTSIDE, true).apply()
+    }
+
+    fun explainedOutsideAccess(): Boolean = prefs.getBoolean(OUTSIDE, false)
+
     fun reset() {
         prefs.edit().putBoolean(FINISHED, false).apply()
     }
@@ -32,6 +38,7 @@ class SetupStore(context: Context) {
     private companion object {
         const val FILE = "ledge_setup"
         const val FINISHED = "finished"
+        const val OUTSIDE = "outside_access"
         const val ASKED = "asked"
     }
 }

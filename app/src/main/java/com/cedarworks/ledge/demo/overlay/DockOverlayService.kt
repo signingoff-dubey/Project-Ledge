@@ -245,6 +245,10 @@ class DockOverlayService : Service() {
             }
         }
         return BackFrame(this, lifecycleOwner.onBackPressedDispatcher).apply {
+            setViewTreeLifecycleOwner(lifecycleOwner)
+            setViewTreeViewModelStoreOwner(lifecycleOwner)
+            setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+            setViewTreeOnBackPressedDispatcherOwner(lifecycleOwner)
             addView(
                 composeView,
                 FrameLayout.LayoutParams(

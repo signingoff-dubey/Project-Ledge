@@ -112,7 +112,7 @@ The home screen and the shelf share one `DemoState`:
 
 - Wi-Fi, Bluetooth, airplane mode, and the flashlight stay in sync. Turning airplane mode on clears Wi-Fi and Bluetooth.
 - Calling Alex Rivera opens the call popup. Mute and end update the banner on the home screen. Ending the call hides those panels.
-- The first launch explains the dock, then asks to draw over other apps so the slider position works on other screens. Notifications are optional and only used for the ongoing notice. The sample does not request accessibility, microphone, phone, contacts, or Bluetooth access. Review setup on the home screen opens that explanation again.
+- The first launch explains the dock, then asks to draw over other apps and to turn on the Ledge accessibility service so the edge handle stays up on other screens. That service does not read windows or keystrokes. Notifications are optional and only used for the ongoing notice. The sample does not request microphone, phone, contacts, or Bluetooth access. Review setup on the home screen opens that explanation again.
 
 The dock slides in and out on a long ease. While it is moving, the window asks for the display's highest refresh rate and releases that request once the dock is resting. If the system animator scale is off, the slide snaps open and closed instead.
 - Playback, repeat, focus, favorites, and the assistant listening state update the cards behind the shelf.

@@ -42,20 +42,19 @@ Opening and closing is a horizontal slide. The outline does not squash while it 
 
 After setup, if **Draw over other apps** is allowed, `DockOverlayService` keeps a narrow handle on the screen edge. Dragging that handle updates `DockSession`, so the slider in Ledge matches it. Swipe inward to open the full dock. Tap the dimmed page, or press back, to close it. The handle window is only the grab width, so touches outside it reach the app underneath.
 
-The service is a `specialUse` foreground service. Its notification is the optional ongoing notice. Swiping the app away tries to start the service again. If overlay permission is missing, the dock stays inside the activity only.
-
-The sample does not install an accessibility service and does not read other apps.
+The service is a `specialUse` foreground service. Its notification is the optional ongoing notice. `LedgeAccessibilityService` starts that service again when the foreground window changes. It does not read window text, nodes, or keystrokes. Swiping the app away tries to start the service again. If overlay permission is missing, the dock stays inside the activity only.
 
 ## Permissions
 
 `DockPermissionPolicy.sample` requests:
 
 - Overlay, required, so the dock can leave the activity.
+- Accessibility, required, so the edge handle is kept available outside Ledge.
 - Notifications, optional, for that ongoing notice.
 
-Onboarding is three steps: welcome, permissions, done. Continue on the permission step stays disabled until overlay is granted. **Not now** finishes setup without it. The coordinator records a grant only after Android reports it. Review setup on the home screen opens the same flow again.
+Onboarding is three steps: welcome, permissions, done. Continue on the permission step stays disabled until overlay and accessibility are granted. **Not now** finishes setup without them. The coordinator records a grant only after Android reports it. Review setup on the home screen opens the same flow again.
 
-Do not add microphone, phone, contacts, Bluetooth, or accessibility unless a real feature needs that one permission, and show it in onboarding first.
+Do not add microphone, phone, contacts, or Bluetooth unless a real feature needs that one permission, and show it in onboarding first. Do not extend the accessibility service to read window content.
 
 ## Sample content
 

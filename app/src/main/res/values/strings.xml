@@ -49,22 +49,22 @@
     <string name="shortcuts">Shortcuts</string>
     <string name="open_link">Open</string>
     <string name="setup">Setup</string>
-    <string name="setup_status">Allow display over other apps and the dock follows the slider on every screen. Review setup shows that permission again.</string>
+    <string name="setup_status">Allow display over other apps and accessibility so the dock stays on the edge of other screens. The notice is optional. Review setup asks again.</string>
     <string name="review_setup">Review setup</string>
     <string name="setup_progress">Step %1$d of %2$d</string>
     <string name="setup_continue">Continue</string>
     <string name="setup_not_now">Not now</string>
     <string name="setup_start">Start using Ledge</string>
     <string name="setup_welcome_title">A dock on the edge</string>
-    <string name="setup_welcome_body">Swipe inward and a droplet slides out of the screen edge. Drag the handle, or the slider, to move it. The next step asks to draw over other apps so that position works outside Ledge too.</string>
+    <string name="setup_welcome_body">Swipe inward and a droplet slides out of the screen edge. Drag the handle, or the slider, to move it. The next step asks for the access that keeps that handle working after you leave Ledge.</string>
     <string name="setup_preview">Preview of the side dock</string>
     <string name="setup_permission_title">Permissions</string>
-    <string name="setup_permission_body">Drawing the dock outside Ledge needs permission to appear over other apps. The ongoing notice is optional. Ledge does not ask for accessibility, microphone, phone, contacts, or Bluetooth access.</string>
+    <string name="setup_permission_body">Outside Ledge, the dock needs to draw over other apps and an accessibility service so the edge handle stays up. The ongoing notice is optional. Ledge does not ask for the microphone, phone, contacts, or Bluetooth.</string>
     <string name="setup_overlay">Draw over other apps</string>
     <string name="setup_overlay_reason">Places the dock on the screen edge in other apps, at the height set by the slider.</string>
     <string name="setup_accessibility">Accessibility</string>
-    <string name="setup_accessibility_reason">Not used. Ledge does not read or control other apps.</string>
-    <string name="setup_accessibility_privacy">An accessibility service is not installed. Nothing on other screens is observed.</string>
+    <string name="setup_accessibility_reason">Keeps the edge handle available after you leave Ledge. It does not read the screen or what you type.</string>
+    <string name="setup_accessibility_privacy">The service does not read windows, text, or keystrokes. It only starts the edge dock again when you switch screens.</string>
     <string name="setup_microphone">Microphone</string>
     <string name="setup_microphone_reason">Not used. Assist does not listen through the microphone.</string>
     <string name="setup_phone">Phone and contacts</string>
@@ -87,4 +87,5 @@
     <string name="overlay_notice_title">Ledge is on the edge</string>
     <string name="overlay_notice_body">Drag the handle on any screen, or move the slider in Ledge.</string>
     <string name="overlay_channel">Edge dock</string>
+    <string name="accessibility_service_description">Keeps the Ledge edge handle available outside the app. It does not read the screen or what you type.</string>
 </resources>

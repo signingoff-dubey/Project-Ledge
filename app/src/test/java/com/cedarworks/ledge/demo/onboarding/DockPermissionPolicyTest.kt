@@ -6,13 +6,14 @@ import org.junit.Test
 
 class DockPermissionPolicyTest {
     @Test
-    fun theSampleDockAsksForOverlayAndAnOptionalNotice() {
+    fun theSampleDockAsksForWhatTheOutsideEdgeNeeds() {
         val required = DockPermissionPolicy.required(DockPermissionPolicy.sample)
         assertEquals(
-            listOf(DockPermissionId.Overlay, DockPermissionId.Notifications),
+            listOf(DockPermissionId.Overlay, DockPermissionId.Accessibility, DockPermissionId.Notifications),
             required.map { it.id },
         )
         assertTrue(required.first { it.id == DockPermissionId.Overlay }.optional.not())
+        assertTrue(required.first { it.id == DockPermissionId.Accessibility }.optional.not())
         assertTrue(required.first { it.id == DockPermissionId.Notifications }.optional)
     }
 
@@ -24,7 +25,7 @@ class DockPermissionPolicyTest {
         )
         assertEquals(
             listOf(DockPermissionId.Accessibility),
-            DockPermissionPolicy.required(DockCapability(observesOtherApps = true)).map { it.id },
+            DockPermissionPolicy.required(DockCapability(holdsEdgeOutsideApp = true)).map { it.id },
         )
         assertEquals(
             listOf(DockPermissionId.Microphone),

@@ -1,13 +1,15 @@
 package com.cedarworks.ledge.demo.onboarding
 
 /**
- * Capabilities that need an Android permission. The sample draws the dock over
- * other apps at the slider position, and may post one ongoing notice for that.
- * It does not read other apps, use the microphone, place calls, or read contacts.
+ * Capabilities that need an Android permission. The sample dock outside this
+ * app draws over other screens, keeps an accessibility service so that edge
+ * handle stays available, and may post one ongoing notice. The service does
+ * not read windows or keystrokes. The sample does not use the microphone,
+ * place calls, or read contacts.
  */
 data class DockCapability(
     val drawsOverOtherApps: Boolean = false,
-    val observesOtherApps: Boolean = false,
+    val holdsEdgeOutsideApp: Boolean = false,
     val usesMicrophone: Boolean = false,
     val placesCalls: Boolean = false,
     val readsContacts: Boolean = false,
@@ -46,9 +48,10 @@ data class DockPermissionSpec(
 )
 
 object DockPermissionPolicy {
-    /** Overlay is required for the dock outside this app. The notice is optional. */
+    /** Overlay and accessibility are required outside this app. The notice is optional. */
     val sample = DockCapability(
         drawsOverOtherApps = true,
+        holdsEdgeOutsideApp = true,
         postsNotifications = true,
     )
 
@@ -63,7 +66,7 @@ object DockPermissionPolicy {
         if (capability.drawsOverOtherApps) {
             add(DockPermissionSpec(DockPermissionId.Overlay, DockPermissionRoute.OverlaySettings, OVERLAY, optional = false))
         }
-        if (capability.observesOtherApps) {
+        if (capability.holdsEdgeOutsideApp) {
             add(
                 DockPermissionSpec(
                     DockPermissionId.Accessibility,

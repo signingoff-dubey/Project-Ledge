@@ -56,18 +56,21 @@ private fun LedgeRoot() {
     val store = remember { SetupStore(context) }
     val coordinator = remember { PermissionCoordinator(context, store) }
     var finished by remember { mutableStateOf(store.isFinished()) }
+    var explained by remember { mutableStateOf(store.explainedOutsideAccess()) }
     var reviewing by rememberSaveable { mutableStateOf(false) }
-    OverlayBinding(active = finished && !reviewing)
+    OverlayBinding(active = finished && explained && !reviewing)
     Box(Modifier.fillMaxSize()) {
         LedgeApp(
             onReviewSetup = { reviewing = true },
         )
-        if (!finished || reviewing) {
+        if (!explained || reviewing) {
             PermissionOnboardingScreen(
                 coordinator = coordinator,
                 onFinished = {
                     store.finish()
+                    store.markOutsideAccessExplained()
                     finished = true
+                    explained = true
                     reviewing = false
                 },
             )
