@@ -51,6 +51,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.cedarworks.ledge.LedgeArrangement
 import com.cedarworks.ledge.LedgeDefaults
 import com.cedarworks.ledge.LedgeEdge
 import com.cedarworks.ledge.LedgeHost
@@ -60,8 +61,10 @@ import com.cedarworks.ledge.LiquidLedgeShape
 import com.cedarworks.ledge.LocalLedgeColors
 import com.cedarworks.ledge.LocalLedgeMetrics
 import com.cedarworks.ledge.LocalLedgeShape
+import com.cedarworks.ledge.demo.DockDevice
 import com.cedarworks.ledge.demo.MainActivity
 import com.cedarworks.ledge.demo.R
+import com.cedarworks.ledge.demo.TorchOutcome
 import com.cedarworks.ledge.demo.samplePanels
 import com.cedarworks.ledge.rememberLedgeState
 import com.cedarworks.ledge.ui.theme.LedgeTheme
@@ -80,6 +83,7 @@ class DockOverlayService : Service() {
     private var handleView: View? = null
     private var handleParams: WindowManager.LayoutParams? = null
     private var panelView: View? = null
+    private var panelParams: WindowManager.LayoutParams? = null
     private var syncing = false
 
     override fun onBind(intent: Intent?) = null
@@ -129,6 +133,7 @@ class DockOverlayService : Service() {
             session.overlayRunning = false
             session.updateExpanded(false)
         }
+        DockDevice.applyTorch(this, false)
         removePanel()
         removeHandle()
         if (::lifecycleOwner.isInitialized) lifecycleOwner.destroy()
@@ -142,6 +147,7 @@ class DockOverlayService : Service() {
             if (session.expanded) {
                 removeHandle()
                 ensurePanel()
+                layoutPanelChrome()
             } else {
                 removePanel()
                 ensureHandle()
@@ -175,6 +181,7 @@ class DockOverlayService : Service() {
         params.gravity = Gravity.TOP or if (session.edge == LedgeEdge.End) Gravity.END else Gravity.START
         params.x = 0
         params.y = frame.top + (travel * session.anchorFraction.coerceIn(0f, 1f)).toInt()
+        DockDevice.applyOverlayChrome(params, session.demo, session.modules, parked = true)
         try {
             windowManager.updateViewLayout(view, params)
         } catch (_: IllegalArgumentException) {
@@ -194,9 +201,23 @@ class DockOverlayService : Service() {
         val params = edgeParams(width = WindowManager.LayoutParams.MATCH_PARENT, height = WindowManager.LayoutParams.MATCH_PARENT)
         params.gravity = Gravity.TOP or Gravity.START
         params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        DockDevice.applyOverlayChrome(params, session.demo, session.modules, parked = false)
         if (!addOverlay(view, params)) return
+        panelParams = params
         panelView = view
         view.requestFocus()
+    }
+
+    private fun layoutPanelChrome() {
+        val view = panelView ?: return
+        val params = panelParams ?: return
+        DockDevice.applyOverlayChrome(params, session.demo, session.modules, parked = false)
+        try {
+            windowManager.updateViewLayout(view, params)
+        } catch (_: IllegalArgumentException) {
+            panelView = null
+            panelParams = null
+        }
     }
 
     private fun removeHandle() {
@@ -208,6 +229,7 @@ class DockOverlayService : Service() {
     private fun removePanel() {
         panelView?.let { removeOverlay(it) }
         panelView = null
+        panelParams = null
     }
 
     private fun addOverlay(view: View, params: WindowManager.LayoutParams): Boolean {
@@ -479,15 +501,40 @@ private fun OverlayPanel(session: DockSession, onMessage: (String) -> Unit) {
         }
         ledgeState.close()
     }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val needsCamera = stringResource(R.string.torch_needs_camera)
+    val torchUnavailable = stringResource(R.string.torch_unavailable)
     LedgeHost(
         state = ledgeState,
         edge = session.edge,
-        selectedKey = session.selectedKey,
+        arrangement = LedgeArrangement.Workflow,
         anchorFraction = session.anchorFraction,
         onAnchorFractionChange = session::updateAnchor,
         openDescription = stringResource(R.string.open_ledge),
         closeDescription = stringResource(R.string.close_ledge),
-        panels = { samplePanels(session.demo, onMessage) },
+        workflowDescription = stringResource(R.string.dock_tray),
+        panels = {
+            samplePanels(
+                demo = session.demo,
+                onMessage = onMessage,
+                modules = session.modules,
+                onChanged = session::persistExtras,
+                onTorch = { enable ->
+                    when (DockDevice.applyTorch(context, enable)) {
+                        TorchOutcome.On -> session.demo.flashlight = true
+                        TorchOutcome.Off -> session.demo.flashlight = false
+                        TorchOutcome.NeedsPermission -> {
+                            session.demo.flashlight = false
+                            onMessage(needsCamera)
+                        }
+                        TorchOutcome.Unavailable -> {
+                            session.demo.flashlight = false
+                            onMessage(torchUnavailable)
+                        }
+                    }
+                },
+            )
+        },
     ) {}
 }
 

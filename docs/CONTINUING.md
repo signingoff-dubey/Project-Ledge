@@ -1,6 +1,6 @@
 # Continuing Ledge
 
-This is the handoff for the next person working on the project. The sample is a single parked droplet, not a row of six panels. Call and contact panels appear only while a call is active.
+This is the handoff for the next person working on the project. The sample dock is a workflow of droplets. Call and contact columns appear only while a call is active. The other columns are tools the user adds.
 
 ## Layout
 
@@ -8,11 +8,13 @@ This is the handoff for the next person working on the project. The sample is a 
 | --- | --- |
 | `ledge/src/main/java/com/cedarworks/ledge/` | Library. Host, gestures, motion, controls, presets. |
 | `ledge/.../geometry/LedgeGeometry.kt` | Droplet outline. One edge is straight. The other edge is the pointed contour. |
-| `ledge/.../LedgeState.kt` | Open and close progress. Tap uses a 480ms ease. A fling uses a spring with no bounce. |
+| `ledge/.../LedgeState.kt` | Open and close progress. Tap uses a 960ms ease. A fling uses a spring with no bounce. The silhouette stretches during the slide and settles at each end. |
 | `ledge/.../LedgeFrameRate.kt` | While the dock is moving, ask for the fastest refresh rate at the current resolution, then release it. |
 | `ledge/.../LedgeDefaults.kt` | Resting size is about 220dp by 52dp. Controls scale with that height. |
 | `app/.../demo/MainActivity.kt` | Sample shell, onboarding gate, and the choice between the in-app dock and the overlay. |
-| `app/.../demo/SamplePanels.kt` | The six sample panels. |
+| `app/.../demo/SamplePanels.kt` | Call, contact, and the workflow columns. |
+| `app/.../demo/DockWorkflow.kt` | The tools that can be added, and how a share becomes a pocket line. |
+| `app/.../demo/DockModulePanels.kt` | One droplet for each tool. |
 | `app/.../demo/DemoState.kt` | On-screen sample state. It does not change radios, place real calls, or use the microphone. |
 | `app/.../onboarding/` | First-launch explanation and the permission coordinator. |
 | `app/.../overlay/DockSession.kt` | Anchor, edge, selected panel, and sample state shared by the home screen and the overlay. |
@@ -36,7 +38,7 @@ One panel is parked on the chosen edge. `anchorFraction` is `0` at the top of th
 
 The straight side of the droplet faces the screen edge. Tips are points. The body is full width through the middle, so controls use `contentWidth` and the vertical padding keeps them out of the tips.
 
-Opening and closing is a horizontal slide. The outline does not squash while it moves. Sub-pixel remainder is applied with `translationX` so the slide does not step by whole pixels. Reduced motion (`Settings.Global.ANIMATOR_DURATION_SCALE` at `0`) snaps instead of easing.
+Opening and closing is a horizontal slide. A short workflow still travels a little more than three columns, and a long one stops at about 86% of the screen, then scrolls. The outline stretches while it moves and returns to rest when the slide finishes. Sub-pixel remainder is applied with `translationX` so the slide does not step by whole pixels. Reduced motion (`Settings.Global.ANIMATOR_DURATION_SCALE` at `0`) snaps instead of easing.
 
 ## Outside the app
 
@@ -58,7 +60,9 @@ Do not add microphone, phone, contacts, or Bluetooth unless a real feature needs
 
 ## Sample content
 
-Original sample copy only. The contact is Alex Rivera. The track is Northline by Harbor & Pine. The assistant is titled Assist. Do not add celebrity photos, Gemini branding, or the name Wemb.
+Original sample copy only. The contact is Alex Rivera. The track is Northline by Harbor & Pine. Do not add celebrity photos, Gemini branding, or the name Wemb.
+
+The home screen adds and removes dock tools. Pocket keeps text and images the user shares into Ledge. The local model drafts a short note on the device and does not use the network. The torch asks for the camera only when it is turned on. Bluetooth, Wi-Fi, and audio flow stay in the sample and do not change the phone radios. Caffeine keeps the screen on. Brightness applies to the Ledge window, and to the open overlay, not to the parked handle.
 
 ## Checks already in the tree
 

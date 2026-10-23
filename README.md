@@ -9,7 +9,7 @@ The panel art, names, and icons in the sample are original. Avatar photos and th
 | Module | Role |
 | --- | --- |
 | `:ledge` | Reusable Compose library. Gesture, shape, controls, and panel recipes. |
-| `:app` | Sample application. Material 3 home screen and the six reference panels. |
+| `:app` | Sample application. Material 3 home screen and a dock workflow you can add tools to. |
 
 Minimum SDK 24. Compile SDK 37. The sample targets SDK 36. UI is Jetpack Compose with Material 3.
 
@@ -84,7 +84,7 @@ Recipes in `com.cedarworks.ledge`:
 
 - Drag the handle up or down the edge to choose where the panel sits. The sample also has a position slider.
 - Swipe the handle inward, or tap it, and the panel expands from that spot. The sample also has a toolbar action and a **Show actions** button.
-- Choose which single panel is parked there: shortcuts, playback, assistant, or quick settings. The call and contact panels appear only while a call is active.
+- Add tools to the dock from the home screen. The open dock is a row of droplets, wider than one column, and it scrolls when the row does not fit. Call and contact columns appear only while a call is active.
 - Drag the edge back outward, tap the dimmed page, or press system back to close.
 - The grab zone is excluded from the system back gesture, only around the handle and up to the platform limit of 200dp. The rest of that edge still goes back.
 - `LedgeEdge.Start` docks the panel on the leading side. In a left-to-right layout that is the left edge, which also handles back, so the sample defaults to the trailing edge.
@@ -114,7 +114,7 @@ The home screen and the shelf share one `DemoState`:
 - Calling Alex Rivera opens the call popup. Mute and end update the banner on the home screen. Ending the call hides those panels.
 - The first launch explains the dock, then asks to draw over other apps and to turn on the Ledge accessibility service so the edge handle stays up on other screens. That service does not read windows or keystrokes. Notifications are optional and only used for the ongoing notice. The sample does not request microphone, phone, contacts, or Bluetooth access. Review setup on the home screen opens that explanation again.
 
-The dock slides in and out on a long ease. While it is moving, the window asks for the display's highest refresh rate and releases that request once the dock is resting. If the system animator scale is off, the slide snaps open and closed instead.
+The dock slides in and out on a long ease, and the droplet stretches while it moves. While it is moving, the window asks for the display's highest refresh rate and releases that request once the dock is resting. If the system animator scale is off, the slide snaps open and closed instead.
 - Playback, repeat, focus, favorites, and the assistant listening state update the cards behind the shelf.
 
 See [docs/CONTINUING.md](docs/CONTINUING.md) for the layout of the code and the current overlay behavior.

@@ -143,9 +143,9 @@ class LedgeState internal constructor(
         val spec = if (reducedMotion) {
             snap<Float>()
         } else if (abs(velocity) < 0.2f) {
-            tween(durationMillis = 480, easing = SlideEasing)
+            tween(durationMillis = SlideDurationMillis, easing = SlideEasing)
         } else {
-            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = SlideSpringStiffness)
         }
         AnimationState(initialValue = progress, initialVelocity = velocity).animateTo(
             targetValue = target,
@@ -185,7 +185,13 @@ class LedgeState internal constructor(
     }
 }
 
-private val SlideEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+/** Tap open and close. Long enough that a wide workflow still eases in. */
+internal const val SlideDurationMillis = 960
+
+/** Fling open and close. No bounce, soft enough to glide across the wider slide. */
+internal const val SlideSpringStiffness = 120f
+
+internal val SlideEasing = CubicBezierEasing(0.16f, 0.84f, 0.12f, 1f)
 
 private sealed interface LedgeCommand {
     data class Drag(val deltaProgress: Float) : LedgeCommand

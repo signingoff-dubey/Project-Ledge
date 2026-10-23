@@ -67,8 +67,11 @@ fun HomeScreen(
     edge: LedgeEdge,
     onEdgeChange: (LedgeEdge) -> Unit,
     onOpenLedge: () -> Unit,
-    selectedKey: String,
-    onSelectedKeyChange: (String) -> Unit,
+    modules: List<DockModule>,
+    onAddModule: (DockModule) -> Unit,
+    onRemoveModule: (DockModule) -> Unit,
+    onChanged: () -> Unit,
+    onTorch: (Boolean) -> Unit,
     anchorFraction: Float,
     onAnchorFractionChange: (Float) -> Unit,
     onMessage: (String) -> Unit,
@@ -134,20 +137,57 @@ fun HomeScreen(
                     label = { Text(stringResource(R.string.edge_leading)) },
                 )
             }
-            SectionTitle(stringResource(R.string.which_actions))
+            SectionTitle(stringResource(R.string.dock_workflow))
+            Text(
+                text = stringResource(R.string.dock_on_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (demo.inCall) {
-                    ActionChip("call", stringResource(R.string.call), selectedKey, onSelectedKeyChange)
-                    ActionChip("contact", stringResource(R.string.contact_name), selectedKey, onSelectedKeyChange)
+                modules.forEach { module ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { onRemoveModule(module) },
+                        label = { Text(stringResource(module.labelRes)) },
+                    )
                 }
-                ActionChip("shortcuts", stringResource(R.string.shortcuts), selectedKey, onSelectedKeyChange)
-                ActionChip("media", stringResource(R.string.track_title), selectedKey, onSelectedKeyChange)
-                ActionChip("assist", stringResource(R.string.assist), selectedKey, onSelectedKeyChange)
-                ActionChip("toggles", stringResource(R.string.quick_settings), selectedKey, onSelectedKeyChange)
             }
+            SectionTitle(stringResource(R.string.dock_add))
+            Text(
+                text = stringResource(R.string.dock_add_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                DockModule.entries.filter { it !in modules }.forEach { module ->
+                    FilterChip(
+                        selected = false,
+                        onClick = { onAddModule(module) },
+                        label = { Text(stringResource(module.labelRes)) },
+                    )
+                }
+            }
+            DockEditors(
+                demo = demo,
+                modules = modules,
+                onChanged = onChanged,
+                onAddMote = { text ->
+                    val cleaned = text.trim()
+                    if (cleaned.isEmpty()) return@DockEditors
+                    demo.motes = (listOf(cleaned.take(80)) + demo.motes).take(30)
+                    onChanged()
+                },
+                onClearPocket = {
+                    demo.pocket = emptyList()
+                    onChanged()
+                },
+            )
             SectionTitle(stringResource(R.string.place_on_edge))
             Slider(
                 value = anchorFraction.coerceIn(0f, 1f),
@@ -226,7 +266,7 @@ fun HomeScreen(
                     demo.updateAirplane(!demo.airplane)
                 }
                 SettingChip(stringResource(R.string.flashlight), demo.flashlight, Icons.Rounded.FlashlightOn) {
-                    demo.flashlight = !demo.flashlight
+                    onTorch(!demo.flashlight)
                 }
             }
             SectionTitle(stringResource(R.string.now_playing))
@@ -322,20 +362,6 @@ private fun Clock() {
             modifier = Modifier.semantics { heading() },
         )
     }
-}
-
-@Composable
-private fun ActionChip(
-    key: String,
-    label: String,
-    selectedKey: String,
-    onSelected: (String) -> Unit,
-) {
-    FilterChip(
-        selected = selectedKey == key,
-        onClick = { onSelected(key) },
-        label = { Text(label) },
-    )
 }
 
 @Composable

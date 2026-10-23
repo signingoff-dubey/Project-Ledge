@@ -3,18 +3,25 @@ package com.cedarworks.ledge
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -24,12 +31,20 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
@@ -44,6 +59,7 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -81,6 +97,12 @@ private class PanelScopeImpl : LedgePanelScope {
     }
 }
 
+/** One column, or every declared column in a single sliding workflow. */
+enum class LedgeArrangement {
+    Single,
+    Workflow,
+}
+
 /**
  * Remembers a [LedgeState] that survives rotation and process recreation.
  */
@@ -94,13 +116,16 @@ fun rememberLedgeState(initiallyOpen: Boolean = false): LedgeState {
 /**
  * Hosts a side ledge over [content].
  *
- * One panel rests on [edge]. Drag the handle along the edge to park it,
- * then swipe inward. The droplet slides out on a smooth ease, and the window
- * asks for the display's highest refresh rate for that motion. Tap the dimmed
- * page, swipe back outward, or use system back to close.
+ * One panel rests on [edge], or a workflow of every declared panel when
+ * [arrangement] is [LedgeArrangement.Workflow]. Drag the handle along the
+ * edge to park it, then swipe inward. The droplet slides out on a long ease
+ * and the silhouette stretches while it moves. The window asks for the
+ * display's highest refresh rate for that motion. Tap the dimmed page, swipe
+ * back outward, or use system back to close.
  *
- * [selectedKey] picks which declared panel is showing. [anchorFraction] is
- * `0` at the top of the safe area and `1` at the bottom.
+ * [selectedKey] picks which declared panel is showing in [LedgeArrangement.Single].
+ * A workflow shows every panel and scrolls when the row is wider than the slide.
+ * [anchorFraction] is `0` at the top of the safe area and `1` at the bottom.
  *
  * Pass translated [openDescription] and [closeDescription] strings.
  */
@@ -110,12 +135,14 @@ fun LedgeHost(
     modifier: Modifier = Modifier,
     state: LedgeState = rememberLedgeState(),
     edge: LedgeEdge = LedgeEdge.End,
+    arrangement: LedgeArrangement = LedgeArrangement.Single,
     selectedKey: Any? = null,
     anchorFraction: Float = 0.5f,
     onAnchorFractionChange: (Float) -> Unit = {},
     colors: LedgeColors = LedgeDefaults.colors(),
     openDescription: String = "Open side actions",
     closeDescription: String = "Close side actions",
+    workflowDescription: String = "Dock",
     content: @Composable () -> Unit,
 ) {
     val scope = PanelScopeImpl()
@@ -161,6 +188,8 @@ fun LedgeHost(
                     state = state,
                     placement = placement,
                     edge = edge,
+                    arrangement = arrangement,
+                    workflowDescription = workflowDescription,
                     anchorFraction = anchor,
                     onAnchorFractionChange = { next ->
                         val coerced = next.coerceIn(0f, 1f)
@@ -183,22 +212,30 @@ private fun LedgeLayer(
     state: LedgeState,
     placement: LedgePlacement,
     edge: LedgeEdge,
+    arrangement: LedgeArrangement,
+    workflowDescription: String,
     anchorFraction: Float,
     onAnchorFractionChange: (Float) -> Unit,
     colors: LedgeColors,
     openDescription: String,
     closeDescription: String,
 ) {
-    val item = items.firstOrNull { it.key == selectedKey } ?: items.first()
+    val selected = items.firstOrNull { it.key == selectedKey } ?: items.first()
+    val spoken = if (arrangement == LedgeArrangement.Workflow) workflowDescription else selected.contentDescription
     val density = LocalDensity.current
     val ltr = LocalLayoutDirection.current == LayoutDirection.Ltr
     val physicalRight = if (ltr) edge == LedgeEdge.End else edge == LedgeEdge.Start
     val hideSign = if (physicalRight) 1f else -1f
     val alignment = if (physicalRight) Alignment.TopEnd else Alignment.TopStart
     val exclusionHeight = with(density) { 200.dp.toPx() }
-    val liquidShape = remember(physicalRight) {
-        LiquidLedgeShape(emergeFromEnd = physicalRight)
-    }
+    val liquidShape = LiquidLedgeShape(
+        stretch = LiquidDockAnimator.stretch(
+            progress = state.progress,
+            emerging = state.emerging,
+            reducedMotion = state.reducedMotion,
+        ),
+        emergeFromEnd = physicalRight,
+    )
     val view = LocalView.current
     val moving = !state.reducedMotion && state.progress > 0.001f && state.progress < 0.999f
     val boostHeld = remember { booleanArrayOf(false) }
@@ -248,7 +285,17 @@ private fun LedgeLayer(
                 .onSizeChanged { placement.containerHeightPx = it.height.toFloat() },
         ) {
             val metrics = LedgeDefaults.metricsFor(maxHeight)
-            val panelWidth = metrics.panelWidth + metrics.edgeMargin
+            val columnGap = metrics.panelWidth * 0.22f
+            val trayWidthDp = if (arrangement == LedgeArrangement.Workflow) {
+                val gapPx = with(density) { columnGap.toPx() }
+                val columnPx = with(density) { metrics.panelWidth.toPx() }
+                val capPx = with(density) { maxWidth.toPx() } * WorkflowCapFraction
+                with(density) {
+                    workflowTrayWidthPx(items.size, columnPx, gapPx, capPx).toDp()
+                }
+            } else {
+                metrics.panelWidth + metrics.edgeMargin
+            }
             val peekPx = with(density) { metrics.peek.toPx() }
             val panelHeightPx = with(density) { metrics.panelHeight.toPx() }
             SideEffect {
@@ -264,7 +311,7 @@ private fun LedgeLayer(
                 Box(
                     Modifier
                         .align(alignment)
-                        .width(panelWidth)
+                        .width(trayWidthDp)
                         .height(metrics.panelHeight)
                         .onSizeChanged { placement.trayWidthPx = it.width.toFloat() }
                         .offset {
@@ -289,6 +336,7 @@ private fun LedgeLayer(
                                 translationX = slide - slide.roundToInt()
                             }
                         }
+                        .clipToBounds()
                         .then(
                             if (state.scrollEnabled) {
                                 Modifier
@@ -297,13 +345,22 @@ private fun LedgeLayer(
                             },
                         )
                         .semantics {
-                            contentDescription = item.contentDescription
+                            contentDescription = spoken
                             isTraversalGroup = true
                         },
                 ) {
                     CompositionLocalProvider(LocalLedgeShape provides liquidShape) {
-                        Box(Modifier.align(alignment)) {
-                            item.content()
+                        if (arrangement == LedgeArrangement.Workflow) {
+                            WorkflowRow(
+                                items = items,
+                                physicalRight = physicalRight,
+                                gap = columnGap,
+                                state = state,
+                            )
+                        } else {
+                            Box(Modifier.align(alignment)) {
+                                selected.content()
+                            }
                         }
                     }
                 }
@@ -348,4 +405,89 @@ private fun LedgeLayer(
             }
         }
     }
+}
+
+@Composable
+private fun WorkflowRow(
+    items: List<LedgePanelEntry>,
+    physicalRight: Boolean,
+    gap: Dp,
+    state: LedgeState,
+) {
+    val scroll = rememberScrollState()
+    val pinKey = items.joinToString(separator = "|") { it.key.toString() }
+    LaunchedEffect(pinKey, physicalRight) {
+        var pinnedMax = -1
+        snapshotFlow { state.progress to scroll.maxValue }
+            .collect { (progress, max) ->
+                val target = if (physicalRight) max else 0
+                if (progress <= 0.02f || pinnedMax != max) {
+                    scroll.scrollTo(target)
+                    pinnedMax = max
+                }
+            }
+    }
+    val shown = if (physicalRight) items.asReversed() else items
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxHeight()
+                .horizontalScroll(scroll, enabled = state.scrollEnabled)
+                .widthIn(min = maxWidth),
+            horizontalArrangement = Arrangement.spacedBy(
+                0.dp,
+                if (physicalRight) Alignment.End else Alignment.Start,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            shown.forEachIndexed { index, item ->
+                if (index > 0) FlowLink(gap)
+                key(item.key) { item.content() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowLink(width: Dp) {
+    val color = LocalLedgeColors.current.controlActive.copy(alpha = 0.55f)
+    Canvas(
+        Modifier
+            .width(width)
+            .fillMaxHeight(),
+    ) {
+        val stroke = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
+        drawFlowCurve(0.36f, 0.08f, color, stroke)
+        drawFlowCurve(0.64f, -0.08f, color, stroke)
+    }
+}
+
+private fun DrawScope.drawFlowCurve(yFraction: Float, bow: Float, color: Color, stroke: Stroke) {
+    val path = Path().apply {
+        moveTo(0f, size.height * yFraction)
+        quadraticTo(
+            size.width / 2f,
+            size.height * (yFraction + bow),
+            size.width,
+            size.height * yFraction,
+        )
+    }
+    drawPath(path, color, style = stroke)
+}
+
+private const val WorkflowCapFraction = 0.86f
+
+internal const val WorkflowMinColumns = 3.4f
+
+internal fun workflowTrayWidthPx(
+    columnCount: Int,
+    columnWidthPx: Float,
+    gapPx: Float,
+    capPx: Float,
+): Float {
+    if (columnCount <= 0 || columnWidthPx <= 0f) return 0f
+    val natural = columnWidthPx * columnCount + gapPx * (columnCount - 1).coerceAtLeast(0)
+    val cap = capPx.coerceAtLeast(columnWidthPx)
+    val minimum = (columnWidthPx * WorkflowMinColumns).coerceAtMost(cap)
+    return natural.coerceIn(minimum, cap)
 }

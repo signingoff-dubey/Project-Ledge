@@ -31,6 +31,24 @@ class DemoState(
     var focus by mutableStateOf(focus)
     var listening by mutableStateOf(listening)
     var favorite by mutableStateOf(favorite)
+    var counter by mutableStateOf(0)
+    var progressMark by mutableStateOf(0)
+    var circleCuts by mutableStateOf(0)
+    var colorIndex by mutableStateOf(0)
+    var caffeine by mutableStateOf(false)
+    var brightness by mutableStateOf(0.85f)
+    var audioRoute by mutableStateOf(0)
+    var timerEndsAt by mutableStateOf(0L)
+    var pocket by mutableStateOf(emptyList<String>())
+    var motes by mutableStateOf(emptyList<String>())
+    var localPrompt by mutableStateOf("")
+    var localAnswer by mutableStateOf("")
+    var shortcutPackage by mutableStateOf("")
+
+    fun extendTimer(nowMs: Long, extraMs: Long) {
+        val base = if (timerEndsAt > nowMs) timerEndsAt else nowMs
+        timerEndsAt = base + extraMs
+    }
 
     fun updateWifi(enabled: Boolean) {
         wifi = enabled

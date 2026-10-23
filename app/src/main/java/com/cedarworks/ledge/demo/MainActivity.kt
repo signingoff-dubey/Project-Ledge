@@ -3,9 +3,12 @@ package com.cedarworks.ledge.demo
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,12 +25,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.cedarworks.ledge.LedgeArrangement
 import com.cedarworks.ledge.LedgeHost
 import com.cedarworks.ledge.demo.onboarding.PermissionCoordinator
 import com.cedarworks.ledge.demo.onboarding.PermissionOnboardingScreen
@@ -39,14 +44,45 @@ import com.cedarworks.ledge.ui.theme.LedgeTheme
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private var pocketedThisIntent = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pocketedThisIntent = savedInstanceState?.getBoolean(KEY_POCKETED) == true
         enableEdgeToEdge()
+        if (acceptShare(intent)) {
+            Toast.makeText(this, getString(R.string.pocket_saved), Toast.LENGTH_SHORT).show()
+        }
         setContent {
             LedgeTheme {
                 LedgeRoot()
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pocketedThisIntent = false
+        if (acceptShare(intent)) {
+            Toast.makeText(this, getString(R.string.pocket_saved), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(KEY_POCKETED, pocketedThisIntent)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun acceptShare(intent: Intent?): Boolean {
+        if (pocketedThisIntent) return false
+        val saved = DockSession.get(this).captureShare(intent, getString(R.string.pocket_image))
+        if (saved) pocketedThisIntent = true
+        return saved
+    }
+
+    private companion object {
+        const val KEY_POCKETED = "pocketed_share"
     }
 }
 
@@ -117,6 +153,43 @@ fun LedgeApp(
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
     val overlayRunning = session.overlayRunning
+    val needsCamera = stringResource(R.string.torch_needs_camera)
+    val torchUnavailable = stringResource(R.string.torch_unavailable)
+    val torchLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) {
+            session.demo.flashlight = false
+            onMessage(needsCamera)
+            return@rememberLauncherForActivityResult
+        }
+        when (DockDevice.applyTorch(context, true)) {
+            TorchOutcome.On -> session.demo.flashlight = true
+            else -> {
+                session.demo.flashlight = false
+                onMessage(torchUnavailable)
+            }
+        }
+    }
+    val onTorch: (Boolean) -> Unit = { enable ->
+        when (DockDevice.applyTorch(context, enable)) {
+            TorchOutcome.On -> session.demo.flashlight = true
+            TorchOutcome.Off -> session.demo.flashlight = false
+            TorchOutcome.NeedsPermission -> {
+                session.demo.flashlight = false
+                torchLauncher.launch(android.Manifest.permission.CAMERA)
+            }
+            TorchOutcome.Unavailable -> {
+                session.demo.flashlight = false
+                onMessage(torchUnavailable)
+            }
+        }
+    }
+    val view = LocalView.current
+    LaunchedEffect(session.demo.caffeine, session.demo.brightness, session.modules) {
+        val activity = view.context.findActivity()
+        if (activity != null) {
+            DockDevice.applyActivityWindow(activity.window, session.demo, session.modules)
+        }
+    }
     if (!overlayRunning) {
         LaunchedEffect(session.demo.inCall) {
             session.syncCall { ledgeState.open() }
@@ -138,8 +211,11 @@ fun LedgeApp(
             onOpenLedge = {
                 if (session.overlayRunning) session.updateExpanded(true) else ledgeState.open()
             },
-            selectedKey = session.selectedKey,
-            onSelectedKeyChange = session::updateSelectedKey,
+            modules = session.modules,
+            onAddModule = session::addModule,
+            onRemoveModule = session::removeModule,
+            onChanged = session::persistExtras,
+            onTorch = onTorch,
             anchorFraction = session.anchorFraction,
             onAnchorFractionChange = session::updateAnchor,
             onMessage = onMessage,
@@ -153,12 +229,21 @@ fun LedgeApp(
         LedgeHost(
             state = ledgeState,
             edge = session.edge,
-            selectedKey = session.selectedKey,
+            arrangement = LedgeArrangement.Workflow,
             anchorFraction = session.anchorFraction,
             onAnchorFractionChange = session::updateAnchor,
             openDescription = stringResource(R.string.open_ledge),
             closeDescription = stringResource(R.string.close_ledge),
-            panels = { samplePanels(session.demo, onMessage) },
+            workflowDescription = stringResource(R.string.dock_tray),
+            panels = {
+                samplePanels(
+                    demo = session.demo,
+                    onMessage = onMessage,
+                    modules = session.modules,
+                    onChanged = session::persistExtras,
+                    onTorch = onTorch,
+                )
+            },
         ) {
             home()
         }
@@ -189,9 +274,10 @@ private fun LedgeOpenPreview() {
         val ledgeState = rememberLedgeState(initiallyOpen = true)
         LedgeHost(
             state = ledgeState,
+            arrangement = LedgeArrangement.Workflow,
             openDescription = "Open side actions",
             closeDescription = "Close side actions",
-            panels = { samplePanels(demo) {} },
+            panels = { samplePanels(demo, onMessage = {}) },
         ) {
             Box(
                 Modifier
